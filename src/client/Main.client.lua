@@ -40,7 +40,6 @@ local REASON_TEXT = {
 	not_equipped = "Equip this ability in Spells first",
 }
 
--- [abilityId] = os.clock() time when the cooldown ends. Mirrors the server, display only.
 local cooldownEnds = {}
 local pending = false
 local pendingDeadline = 0
@@ -132,11 +131,9 @@ local function selectAbility(id)
 	hud:SetSelected(id and Config.Abilities[id] or nil)
 end
 
--- Pushes the loadout to the wheel. If the selected ability was removed, selects the first equipped one.
 local function refreshLoadout()
 	wheel:SetLoadout(loadout:Get(currentView))
 	if spellBook then
-		-- An ability sits in at most one wheel, so the union is the set of equipped abilities.
 		local equipped = {}
 		for _, key in ipairs(Config.Loadout.Wheels) do
 			for _, id in ipairs(loadout:Get(key)) do
@@ -213,19 +210,13 @@ local function toggleWheel()
 	end
 end
 
--- Screen GUI and components ------------------------------------------------
 local gui = Instance.new("ScreenGui")
 gui.Name = "AbilityGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Loadout changes are requests. The server decides and sends the new state back, and
--- refreshLoadout runs when that state arrives. Clicking an occupied slot removes its ability;
--- clicking an empty slot does nothing.
--- Edit mode slot clicks:
--- - an occupied slot asks the server to remove its ability;
--- - an empty slot is marked as the target for the next ability (click it again to unmark).
+-- Clicks send requests to the server, which decides and replies with LoadoutState.
 local function onEditSlot(index)
 	if loadout:Get(currentView)[index] then
 		Remotes.Loadout:FireServer("unequip", currentView, index)
@@ -242,7 +233,6 @@ local function onPickAbility(id)
 	Remotes.Loadout:FireServer("toggle", currentView, id, targetSlot)
 	targetSlot = nil
 	wheel:SetTarget(nil)
-	-- The clicked card goes back to unselected; its equipped mark updates when the server replies.
 	spellBook:SetPicked(nil)
 end
 
@@ -297,11 +287,8 @@ spellBook = SpellBook.new(gui, {
 
 refreshLoadout()
 
--- Input --------------------------------------------------------------------
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.KeyCode == Config.Input.WheelKey then
-		-- Q always goes to the Q wheel: it opens it, or switches an open R wheel to Q. Works in the
-		-- editor too. Only a focused text box (typing in chat) blocks it.
 		if UserInputService:GetFocusedTextBox() then
 			return
 		end
@@ -311,7 +298,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			wheel:Open()
 		end
 	elseif input.KeyCode == Config.Input.SpellsKey then
-		-- R always goes to the R wheel: it opens it, or switches an open Q wheel to R.
 		if UserInputService:GetFocusedTextBox() then
 			return
 		end
@@ -362,7 +348,6 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
--- Server responses ---------------------------------------------------------
 Remotes.Response.OnClientEvent:Connect(function(abilityId, ok, reason, remaining)
 	pending = false
 	if typeof(abilityId) ~= "string" or not Config.Abilities[abilityId] then
@@ -404,12 +389,10 @@ Remotes.LoadoutState.OnClientEvent:Connect(function(wheels, reason)
 	end
 end)
 
--- Cosmetic notices from the server, sent to every client, including the caster.
 Remotes.Visual.OnClientEvent:Connect(function(abilityId, character)
 	AbilityVisuals.Play(abilityId, character)
 end)
 
--- Character lifecycle: close the wheel and drop per-character connections on death or respawn.
 local function onCharacterAdded(character)
 	for _, connection in ipairs(characterConnections) do
 		connection:Disconnect()
@@ -438,7 +421,6 @@ if player.Character then
 	onCharacterAdded(player.Character)
 end
 
--- Per-frame display: wheel hover and cooldown visuals, HUD cooldown bar.
 RunService.RenderStepped:Connect(function()
 	wheel:Update(getRemaining)
 	hud:Update(getRemaining)
@@ -446,5 +428,4 @@ RunService.RenderStepped:Connect(function()
 	spellBook:SetVisible(wheel:IsEditing())
 end)
 
--- Ask the server for this player's loadout now that the listeners are connected.
 Remotes.Loadout:FireServer("sync")

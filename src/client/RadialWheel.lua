@@ -22,7 +22,6 @@ local Icons = require(script.Parent.Icons)
 local RadialWheel = {}
 RadialWheel.__index = RadialWheel
 
--- Layout constants. All values are fractions of the panel or ring width.
 local SLOT_COUNT = Config.Loadout.SlotCount
 local SLOT_SIZE = 0.18 -- slot diameter / ring width
 local RING_RADIUS = 0.38 -- distance from the ring center to each slot center / ring width
@@ -52,13 +51,11 @@ local function round(parent, scale)
 	return make("UICorner", { CornerRadius = UDim.new(scale, 0) }, parent)
 end
 
--- Center of slot k in ring coordinates. Angles are evenly spaced around the full circle.
 local function slotCenter(index)
 	local angle = math.rad(FIRST_ANGLE - (index - 1) * 360 / SLOT_COUNT)
 	return UDim2.fromScale(0.5 + RING_RADIUS * math.cos(angle), 0.5 - RING_RADIUS * math.sin(angle))
 end
 
--- The color of an ability's category. Falls back to the neutral outline.
 local function categoryColor(id)
 	local category = Config.Categories[Config.Abilities[id].Category]
 	return category and category.Color or Theme.Stroke
@@ -110,7 +107,6 @@ function RadialWheel.new(screenGui, options)
 	self._scale = make("UIScale", { Scale = 1 }, panel)
 	self._root = panel
 
-	-- Title band: name, description, and the ACTIVE tag (play mode), or the catalog chips (edit mode).
 	local titleBand = make("Frame", {
 		Name = "TitleBand",
 		Position = UDim2.fromScale(0, 0),
@@ -160,7 +156,6 @@ function RadialWheel.new(screenGui, options)
 	}, titleBand)
 	round(self._activeTag, 0.5)
 
-	-- Catalog chips (edit mode only). One chip per ability, each taking an equal share of the band.
 	local chipRow = make("Frame", {
 		Name = "CatalogChips",
 		Position = UDim2.fromScale(0.04, 0.2),
@@ -202,7 +197,6 @@ function RadialWheel.new(screenGui, options)
 		end))
 	end
 
-	-- Q badge at the exact center of the ring. Transparent fill, so the character shows through.
 	local ring = make("Frame", {
 		Name = "Ring",
 		Position = UDim2.new(0, 0, TITLE_BAND, 0),
@@ -235,7 +229,6 @@ function RadialWheel.new(screenGui, options)
 	}, ring)
 	round(self._pointer, 0.5)
 
-	-- The center badge shows which wheel is on screen (Q or R). Clicking it switches wheels.
 	local badge = make("TextButton", {
 		Name = "KeyBadge",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -265,7 +258,6 @@ function RadialWheel.new(screenGui, options)
 		end
 	end))
 
-	-- Hint row: one line, centered, under the ring. The text changes with the mode.
 	local hintRow = make("Frame", {
 		Name = "Hints",
 		Position = UDim2.new(0, 0, TITLE_BAND + RING_BAND + HINT_BAND * 0.55, 0),
@@ -282,7 +274,6 @@ function RadialWheel.new(screenGui, options)
 	}, hintRow)
 	self._keyHints = {}
 
-	-- Close button: leaves the wheel without selecting anything, like Esc.
 	local closeButton = make("TextButton", {
 		Name = "CloseButton",
 		LayoutOrder = 4,
@@ -333,7 +324,6 @@ function RadialWheel.new(screenGui, options)
 	}, panel)
 	make("UITextSizeConstraint", { MaxTextSize = 12, MinTextSize = 8 }, self._notice)
 
-	-- Slots: created once, filled and emptied by SetLoadout.
 	for index = 1, SLOT_COUNT do
 		self._slots[index] = self:_buildSlot(index)
 	end
@@ -359,7 +349,6 @@ function RadialWheel:_buildSlot(index)
 	local scale = make("UIScale", { Scale = 0 }, slot)
 	local stroke = make("UIStroke", { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Theme.Stroke, Thickness = 1.5, Transparency = 0.6 }, slot)
 
-	-- Icon or plus, centered in the slot. Rebuilt by SetLoadout.
 	local iconHolder = make("Frame", {
 		Name = "IconHolder",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -368,7 +357,6 @@ function RadialWheel:_buildSlot(index)
 		BackgroundTransparency = 1,
 	}, slot)
 
-	-- Cooldown: a dim overlay, the countdown in place of the icon, and a thin bar along the bottom.
 	local overlay = make("Frame", {
 		Name = "CooldownOverlay",
 		Size = UDim2.fromScale(1, 1),
@@ -413,7 +401,6 @@ function RadialWheel:_buildSlot(index)
 	}, barBack)
 	round(barFill, 0.5)
 
-	-- Dot under the slot marks the selected ability.
 	local activeDot = make("Frame", {
 		Name = "ActiveDot",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -450,8 +437,6 @@ function RadialWheel:_buildSlot(index)
 		end
 	end))
 
-	-- Clicks are routed by mode. In play mode a click selects the ability in the slot.
-	-- In edit mode every slot, empty or not, is an edit target.
 	table.insert(self._connections, slot.Activated:Connect(function()
 		if not self._open then
 			return
@@ -469,7 +454,6 @@ function RadialWheel:_buildSlot(index)
 	return slotData
 end
 
--- Fills the slots from a loadout array (ability id or false per slot).
 function RadialWheel:SetLoadout(slots)
 	for index, slot in ipairs(self._slots) do
 		local id = slots[index] or nil
@@ -498,7 +482,6 @@ function RadialWheel:SetLoadout(slots)
 	self:_refresh()
 end
 
--- Selects an equipped ability (or clears the selection with nil).
 function RadialWheel:SetSelected(id)
 	self._selected = id
 	self:_refresh()
@@ -508,20 +491,16 @@ function RadialWheel:GetSelected()
 	return self._selected
 end
 
--- Shows which wheel is on screen ("Q" or "R") in the center badge.
 function RadialWheel:SetView(letter)
 	self._keyLabel.Text = letter
 end
 
--- Edit mode: the title band shows the catalog and the hint row explains the clicks.
 function RadialWheel:SetEditing(editing)
 	self._editing = editing
 	self._target = nil
 	self:SetPick(nil)
-	-- The Feitiços panel beside the wheel does the picking, so the catalog chips stay hidden.
 	self._chipRow.Visible = false
 	self._titleName.Visible = true
-	-- Edit mode centers the instruction title over the wheel; play mode keeps the name left, beside the ACTIVE tag.
 	self._titleName.TextXAlignment = editing and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
 	self._titleDesc.Visible = true
 	if editing then
@@ -541,13 +520,11 @@ function RadialWheel:IsEditing()
 end
 
 
--- Edit mode: the empty slot the next ability will be placed in. nil clears it.
 function RadialWheel:SetTarget(index)
 	self._target = index
 	self:_refresh()
 end
 
--- Highlights the catalog entry that the next slot click will equip.
 function RadialWheel:SetPick(id)
 	self._pick = id
 	for chipId, chip in pairs(self._chips) do
@@ -555,7 +532,6 @@ function RadialWheel:SetPick(id)
 	end
 end
 
--- Applies hover and selection styling to every slot, and refreshes the title.
 function RadialWheel:_refresh()
 	for _, slot in ipairs(self._slots) do
 		local hovered = slot.index == self._hoverIndex
@@ -574,7 +550,6 @@ function RadialWheel:_refresh()
 			slot.stroke.Thickness = 2
 			slot.stroke.Transparency = 0
 		else
-			-- Equipped slots take their category color; empty slots keep the neutral outline.
 			slot.stroke.Color = slot.id and categoryColor(slot.id) or Theme.Stroke
 			slot.stroke.Thickness = 1.5
 			slot.stroke.Transparency = slot.id and 0 or 0.6
@@ -600,7 +575,6 @@ function RadialWheel:_refreshTitle()
 	self._activeTag.Visible = id == self._selected
 end
 
--- The ability in the hovered slot, or nil if the hovered slot is empty or nothing is hovered.
 function RadialWheel:GetHovered()
 	if not self._hoverIndex then
 		return nil
@@ -681,7 +655,6 @@ function RadialWheel:IsOpen()
 	return self._open
 end
 
--- Slots pop in one after another. The stagger comes from TweenInfo's delay.
 function RadialWheel:Open()
 	if self._open then
 		return
@@ -690,7 +663,6 @@ function RadialWheel:Open()
 	self._closeToken += 1
 	self._root.Visible = true
 	self._scale.Scale = 0.94
-	-- Brief "release Q" notice: visible at once, then it fades out.
 	self._notice.TextTransparency = 0
 	setTween(self._tweens, "notice", self._notice, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 1.5), { TextTransparency = 1 })
 	setTween(self._tweens, "rootScale", self._scale, Theme.Tween.Open, { Scale = 1 })
@@ -703,7 +675,6 @@ function RadialWheel:Open()
 	self:_refresh()
 end
 
--- Closes the wheel and leaves edit mode. The selection is not changed here.
 function RadialWheel:Close()
 	if not self._open then
 		return
@@ -726,7 +697,6 @@ function RadialWheel:Close()
 	end)
 end
 
--- Called every frame by the controller. Updates hover (while open) and cooldown visuals.
 function RadialWheel:Update(getRemaining)
 	if self._open then
 		self:_setHoverIndex(self:_findHoverIndex())
