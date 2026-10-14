@@ -13,7 +13,7 @@
 	- "unequip" empties the slot with that number.
 	- AbilityService only runs abilities that are equipped in one of the two wheels.
 
-	Saving: changes are saved a few seconds after they happen, and again when the player
+	Saving: changes are saved right after they happen, and again when the player
 	leaves or the server shuts down. If loading fails, the player keeps defaults for the
 	session and nothing is saved, so a failed load can never overwrite stored data.
 ]]
@@ -28,11 +28,10 @@ local LoadoutService = {}
 
 local SLOT_COUNT = Config.Loadout.SlotCount
 local MIN_REQUEST_INTERVAL = 0.1 -- seconds between loadout requests per player
-local SAVE_DELAY = 3 -- seconds after a change before it is written
 local DATA_VERSION = 1
 local store = DataStoreService:GetDataStore("SupernaturalLoadouts")
 
--- [Player] = { wheels = {...}, lastRequest = number, canSave = bool, savedKey = string?, saveQueued = bool }
+-- [Player] = { wheels = {...}, lastRequest = number, canSave = bool, savedKey = string? }
 local loadouts = {}
 
 local function isWheel(key)
@@ -163,17 +162,10 @@ local function save(player)
 	end
 end
 
--- Schedules one save a few seconds after a change, so rapid edits become one write.
+-- Saves right after each change. A delayed save could be lost if the session stops first
+-- (for example, stopping a playtest in Studio), so the write happens immediately instead.
 local function scheduleSave(player)
-	local state = loadouts[player]
-	if not state or state.saveQueued then
-		return
-	end
-	state.saveQueued = true
-	task.delay(SAVE_DELAY, function()
-		state.saveQueued = false
-		save(player)
-	end)
+	task.spawn(save, player)
 end
 
 -- Puts abilityId in `wheelKey`. `chosen` is an optional slot number.
@@ -280,7 +272,7 @@ local function loadPlayer(player, state)
 end
 
 local function onPlayerAdded(player)
-	local state = { wheels = defaultWheels(), lastRequest = 0, canSave = false, saveQueued = false }
+	local state = { wheels = defaultWheels(), lastRequest = 0, canSave = false }
 	loadouts[player] = state
 	task.spawn(loadPlayer, player, state)
 end

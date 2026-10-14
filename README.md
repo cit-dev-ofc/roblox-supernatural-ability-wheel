@@ -68,7 +68,13 @@ Categories are defined in `Config.Categories`. Add a category there and use its 
 
 To produce a place file without Studio: `rojo build default.project.json -o SupernaturalAbilityWheel.rbxlx`.
 
-**Saving loadouts.** Loadouts are stored with `DataStoreService`. Studio cannot access DataStores for an unpublished place, so in Studio the loadout only lasts the session. To test saving, publish the place, or enable **Game Settings → Security → Enable Studio Access to API Services**.
+**Saving loadouts.** Loadouts are stored with `DataStoreService`, under the store `SupernaturalLoadouts`. Each change is saved right away. To test saving in Studio:
+
+1. Publish the place once (**File → Publish to Roblox**).
+2. Turn on **Studio access to API services**: in Studio, open the experience settings, go to **Security** (*Segurança*), and enable *Permitir acesso do Studio aos serviços API*.
+3. Press Play, change a loadout, stop, and press Play again. The change should still be there.
+
+Without step 2, Studio logs `StudioAccessToApisNotAllowed` and the loadout lasts only for the session. Nothing already stored is overwritten in that case.
 
 ## Testing
 
@@ -78,7 +84,7 @@ Tested in Roblox Studio (evidence from the Studio console and tool output):
 - Vampiric Speed: the server accepts the cast and the HUD shows the cooldown. The dash moves the character, and afterimages appear on the client.
 - Telekinetic Choke: target validation returns the expected result for in-range, out-of-range, behind, self, and bad-type cases. The full effect runs: the target is held and lifted, takes 12 damage, and all changes are restored once.
 - Locomotion: the default Animate script switches to run and idle as expected.
-- DataStore: access is refused from an unpublished place, as expected. The code falls back to session-only loadouts.
+- DataStore: without Studio API access, Studio refuses the request as expected, and the loadout works for the session only.
 
 Not yet tested:
 
